@@ -1,0 +1,36 @@
+2026-05-18 16:07:05 - Début : diac_fastpitch | modèle=fastpitch | vocodeur=hifigan
+2026-05-18 16:07:22 - Fin : 16.89 secondes -> fastpitch_hifigan_diac_fastpitch_20260518_160705_504.wav
+2026-05-18 16:07:22 - Début : diac_fastpitch | modèle=fastpitch | vocodeur=vocos
+2026-05-18 16:07:25 - Fin : 3.34 secondes -> fastpitch_vocos_diac_fastpitch_20260518_160722_391.wav
+2026-05-18 16:07:25 - Début : diac_fastpitch | modèle=fastpitch | vocodeur=vocos44
+2026-05-18 16:07:29 - Fin : 3.65 secondes -> fastpitch_vocos44_diac_fastpitch_20260518_160725_737.wav
+2026-05-18 16:07:29 - Début : diac_mixer128 | modèle=mixer128 | vocodeur=hifigan
+2026-05-18 16:07:44 - Fin : 15.58 secondes -> mixer128_hifigan_diac_mixer128_20260518_160729_386.wav
+2026-05-18 16:07:44 - Début : diac_mixer128 | modèle=mixer128 | vocodeur=vocos
+2026-05-18 16:07:46 - Fin : 1.55 secondes -> mixer128_vocos_diac_mixer128_20260518_160744_967.wav
+2026-05-18 16:07:46 - Début : diac_mixer128 | modèle=mixer128 | vocodeur=vocos44
+2026-05-18 16:07:48 - Fin : 1.67 secondes -> mixer128_vocos44_diac_mixer128_20260518_160746_516.wav
+2026-05-18 16:07:48 - Début : diac_mixer80 | modèle=mixer80 | vocodeur=hifigan
+2026-05-18 16:08:02 - Fin : 14.57 secondes -> mixer80_hifigan_diac_mixer80_20260518_160748_188.wav
+2026-05-18 16:08:02 - Début : diac_mixer80 | modèle=mixer80 | vocodeur=vocos
+2026-05-18 16:08:04 - Fin : 1.28 secondes -> mixer80_vocos_diac_mixer80_20260518_160802_758.wav
+2026-05-18 16:08:04 - Début : diac_mixer80 | modèle=mixer80 | vocodeur=vocos44
+2026-05-18 16:08:05 - Fin : 1.65 secondes -> mixer80_vocos44_diac_mixer80_20260518_160804_036.wav
+2026-05-18 16:08:05 - Début : plain_fastpitch | modèle=fastpitch | vocodeur=hifigan
+2026-05-18 16:08:19 - Fin : 13.65 secondes -> fastpitch_hifigan_plain_fastpitch_20260518_160805_684.wav
+2026-05-18 16:08:19 - Début : plain_fastpitch | modèle=fastpitch | vocodeur=vocos
+2026-05-18 16:08:22 - Fin : 2.76 secondes -> fastpitch_vocos_plain_fastpitch_20260518_160819_332.wav
+2026-05-18 16:08:22 - Début : plain_fastpitch | modèle=fastpitch | vocodeur=vocos44
+2026-05-18 16:08:24 - Fin : 2.59 secondes -> fastpitch_vocos44_plain_fastpitch_20260518_160822_089.wav
+2026-05-18 16:08:24 - Début : plain_mixer128 | modèle=mixer128 | vocodeur=hifigan
+2026-05-18 16:08:36 - Fin : 11.33 secondes -> mixer128_hifigan_plain_mixer128_20260518_160824_680.wav
+2026-05-18 16:08:36 - Début : plain_mixer128 | modèle=mixer128 | vocodeur=vocos
+2026-05-18 16:08:37 - Fin : 1.15 secondes -> mixer128_vocos_plain_mixer128_20260518_160836_010.wav
+2026-05-18 16:08:37 - Début : plain_mixer128 | modèle=mixer128 | vocodeur=vocos44
+2026-05-18 16:08:38 - Fin : 1.40 secondes -> mixer128_vocos44_plain_mixer128_20260518_160837_156.wav
+2026-05-18 16:08:38 - Début : plain_mixer80 | modèle=mixer80 | vocodeur=hifigan
+2026-05-18 16:08:49 - Fin : 11.30 secondes -> mixer80_hifigan_plain_mixer80_20260518_160838_555.wav
+2026-05-18 16:08:49 - Début : plain_mixer80 | modèle=mixer80 | vocodeur=vocos
+2026-05-18 16:08:50 - Fin : 1.04 secondes -> mixer80_vocos_plain_mixer80_20260518_160849_853.wav
+2026-05-18 16:08:50 - Début : plain_mixer80 | modèle=mixer80 | vocodeur=vocos44
+2026-05-18 16:08:52 - Fin : 1.35 secondes -> mixer80_vocos44_plain_mixer80_20260518_160850_895.wav
