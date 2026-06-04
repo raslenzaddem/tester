@@ -70,62 +70,109 @@ The following Figure summarizes the architecture of the framework
 
 The following figure illustrates the general execution flow in the run-as-a-server scenario:
 ```
-1. python dispatcher.py serve --port 8000
+ ┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 1. python dispatcher.py serve --port 8000                                                 │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-2. The dispatcher detects the command "serve" and parses arguments (host, port)
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 2. The dispatcher detects the command "serve" and parses arguments (host, port).          │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-3. The dispatcher delegates the responsability to the server component: start_server(...)
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 3. The dispatcher delegates the responsibility to the server component: start_server(...) │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-4. The server componenet loads the configuration from the yaml file via load_config()
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 4. The server component loads the configuration from the YAML file via load_config().     │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-5. The server component creates a TTSService instance creating FastAPI with lifespan
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 5. The server component creates a TTSService instance, which sets up FastAPI with lifespan│
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-6. The TTSService instance setup routes and registers the "/synthesize" endpoint
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 6. The TTSService instance sets up routes and registers the "/synthesize" endpoint.       │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-7. uvicorn.run() starts the ASGI (Asynchronous Server Gateway Interface) server 
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 7. uvicorn.run() starts the ASGI (Asynchronous Server Gateway Interface) server.          │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-8. The TTSService instance instantiates ModelRegistry class that handles (create/shutdown/register) ModelProcess instances: models are defined in the config.yaml file.
-The start_all method of ModelRegistry class checks if models environment is properly built and invoque the correspoding start() method of the every ModelProcess instance.
-It finally outputs the success rate of loaded models and list the models by name. 
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 8. The TTSService instance instantiates the ModelRegistry class, which handles creation,  │
+│    shutdown, and registration of ModelProcess instances for each model defined in the     │
+│    YAML file. The start_all() method checks if each model's environment is properly built │
+│    and invokes the corresponding start() method for every ModelProcess instance. It       │
+│    finally outputs the success rate of loaded models and lists the models by name.        │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-9. Each ModelProcess instance defines methods to start, stop, request a audio generation of the associated model subprocess.
-The established IPC (Inter-Process Communication) is ensured via stdin and stdout pipes and each model subprocess is launched with the corresponding venv (pointing to the corresponding python and pip executable).
-Once the connection is established, the server stays idle for all models to load properly. The server keeps running even if all models fail to load but would not accept any HTTP requests if that request requires a model that failed to load.
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ 9. Each ModelProcess instance defines methods to start, stop, and request audio generation│
+│    from the associated model subprocess. The established IPC (Inter‑Process Communication)│
+│    is ensured via stdin and stdout pipes. Each model subprocess is launched with its own  │
+│    virtual environment (pointing to the corresponding python and pip executables). Once   │
+│    the connection is established, the server stays idle for all models to load properly.  │
+│    The server keeps running even if all models fail to load, but it will not accept any   │
+│    HTTP request that requires a model which failed to load.                               │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-10. Each created model subprocess has its own defined lifecycle.
-Once started, it loads the corresponding AI model and pipeline and signals that to the corresponding Model Process instance via its stdout and passively waits for tts-requests.
-This is ensured by a blocked while loop.
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│10. Each created model subprocess has its own defined lifecycle. Once started, it loads    │
+│    the corresponding AI model and pipeline and signals readiness to its ModelProcess      │
+│    instance via stdout. It then passively waits for TTS requests in a blocked while loop. │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-11. Once a ModelProcess instance recieve a confirmation that the corresponding model is loaded, the FastAPI start accepting HTTP RESTful request for that specific model.
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│11. Once a ModelProcess instance receives a confirmation that the corresponding model is   │
+│    loaded, the FastAPI server starts accepting HTTP RESTful requests for that specific    │
+│    model.                                                                                 │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-12. Once the Server recieves a tts request, it delegates the responsibility to the corresponding subprocess dynamically based on the requested language.
-IT waits for a response for both success and error scenarios
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│12. When the server receives a TTS request, it delegates the responsibility to the         │
+│    corresponding subprocess dynamically based on the requested language. It waits for a   │
+│    response for both success and error scenarios.                                         │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-13. The passively awaiting AI model subprocess (Kokoro_en_fr for english and french and Mixer80Vocos_ar) recieves via its stdin the tts request in the form of a UTF-8-encoded json document, decode it, feed the corresponding text to its pipeline and generate the corresponding mp3 audio Bytes
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│13. The passively awaiting AI model subprocess (e.g., kokoro_en_fr for English/French or   │
+│    Mixer80Vocos_ar for Arabic) receives via its stdin the TTS request as a UTF‑8 encoded  │
+│    JSON document, decodes it, feeds the text to its pipeline, and generates the           │
+│    corresponding MP3 audio bytes.                                                         │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-14. The Corresponding AI subprocess sends the meta data of the generated mp3 audio bytes in the form of UTF-8 encode json document then the raw audio bytes via its stdout.
-The subprocess wait passivey for the next request.
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│14. The AI subprocess sends the metadata of the generated MP3 audio bytes as a UTF‑8       │
+│    encoded JSON document, followed by the raw audio bytes, via its stdout. The subprocess │
+│    then passively waits for the next request.                                             │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-15. The corresponding ModelProcess recieves the metadata, decode it back int json file to get the length of the expected bytes in case of success or catch the corresponsing error otherwise to raise HTTPException.
-In case of success, it recieves the bytes and stream them back Via HTTPResponse.
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│15. The corresponding ModelProcess receives the metadata, decodes it back into a JSON      │
+│    object to obtain the length of the expected bytes (in case of success) or catches the  │
+│    corresponding error to raise an HTTPException. In case of success, it receives the     │
+│    bytes and streams them back via an HTTP response.                                      │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
                    ▼
-16. The FASTApi server recieves a shutdown signal (CTR+C) and kill all subprocesses gracefully before terminating the application.
-
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│16. The FastAPI server receives a shutdown signal (Ctrl+C). It kills all subprocesses      │
+│    gracefully before terminating the application.                                         │
+└───────────────────────────────────────────────────────────────────────────────────────────┘
 ```
                     
 ## Model Configuration (models_config.yaml)
@@ -179,33 +226,44 @@ models:                       # <-- mandatory top-level key
 ```
 
 # Communication Protocol (Model ↔ Dispatcher)
-The model process communicates via stdin/stdout using a simple line‑based JSON protocol.
+The model process communicates via stdin/stdout using a simple line‑based JSON protocol. At the sending part, the JSON document is encoded into UTF-8 bytes.
+The process is reversed at the recieving end. The JSON document must be followed by "\n" to used as line separator essential for IPC exchange. 
 
-Request (dispatcher → model)
-{"action": "synthesize", "text": "...", "language": "ar", "voice": "optional"}\n
-
-Response (model → dispatcher)
-Success case:
-
-
-Metadata line: {"status":"success","audio_length":12345}\n
-
-Binary audio data (exactly audio_length bytes)
-
-Error case:
-
-Metadata line: {"status":"error","error":"reason"}\n
-
-No audio data follows.
-
-Initialisation:
-
+## Initialisation (model subprocess → ModelProcess instance ):
 On startup, model must send {"status":"init"}\n to signal readiness.
 
-Setup & Installation
-Prerequisites
-Python 3.11/3.12 (match model requirements)
+## Request (ModelProcess instance → model subprocess):
+{"action": "synthesize", "text": "...", "language": "ar"}\n
 
-ffmpeg in PATH (for MP3 conversion)
+## Response (model subprocess → ModelProcess instance):
+- Success case:
 
-ONNX Runtime (onnxruntime) and other dependencies listed in each model's requirements.txt
+Metadata line: {"status":"success","audio_length":12345}\n
+Binary audio data (exactly audio_length bytes)
+
+- Error case:
+
+Metadata line: {"status":"error","error":"reason"}\n
+No audio data follows.
+
+## Summary 
+| Direction                                         | Data type    | Format        | Encoding       |
+|---------------------------------------------------|--------------|---------------|----------------|
+| ModelProcess instance  -> model subprocess        | Command      | JSON + "\n"   | UTF-8 encoding |
+| model subprocess       ->  ModelProcess instance  | Metadata     | JSON + "\n"   | UTF-8 encoding |
+| model subprocess       ->  ModelProcess instance  | Metadata     | Audio         | Raw bytes      |
+
+| Direction                                         | Data Type | Format        | Encoding       |
+| :------------------------------------------------ | :-------: | :------------ | :------------- |
+| ModelProcess instance → model subprocess          | Command   | JSON + `"\n"` | UTF-8 encoding |
+| model subprocess → ModelProcess instance          | Metadata  | JSON + `"\n"` | UTF-8 encoding |
+| model subprocess → ModelProcess instance          | Audio     | Binary        | Raw bytes      |
+
+| Direction                                         | Data Type | Format        | Encoding       |
+| :------------------------------------------------ | :-------: | :------------ | :------------- |
+| ModelProcess instance → model subprocess          | Command   | JSON + `"\n"` | UTF-8 encoding |
+| model subprocess → ModelProcess instance          | Metadata  | JSON + `"\n"` | UTF-8 encoding |
+| model subprocess → ModelProcess instance          | Audio     | Binary        | Raw bytes      |
+
+PS: At the models subprocess level ran in persistant mode (in contrast to run-once mode), stdout messages (e.g print functions ) are redirected to stderr and error cases were handled to be sent as an UTF-8 encode JSON files to be dealt with at the reciever end (ModelProcess instances).
+
