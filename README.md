@@ -70,7 +70,7 @@ The following Figure summarizes the architecture of the framework
 
 The following figure illustrates the general execution flow in the run-as-a-server scenario:
 ```
- ┌───────────────────────────────────────────────────────────────────────────────────────────┐
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
 │ 1. python dispatcher.py serve --port 8000                                                 │
 └───────────────────────────────────────────────────────────────────────────────────────────┘
                    │
@@ -230,20 +230,33 @@ The model process communicates via stdin/stdout using a simple line‑based JSON
 The process is reversed at the recieving end. The JSON document must be followed by "\n" to used as line separator essential for IPC exchange. 
 
 ## Initialisation (model subprocess → ModelProcess instance ):
-On startup, model must send {"status":"init"}\n to signal readiness.
+On startup, model must send 
+```
+{"status":"init"}\n
+```
+to signal readiness.
 
 ## Request (ModelProcess instance → model subprocess):
+```
 {"action": "synthesize", "text": "...", "language": "ar"}\n
-
+```
 ## Response (model subprocess → ModelProcess instance):
 - Success case:
 
-Metadata line: {"status":"success","audio_length":12345}\n
+Metadata line: 
+```
+{"status":"success","audio_length":12345}\n
+```
+
 Binary audio data (exactly audio_length bytes)
 
 - Error case:
 
-Metadata line: {"status":"error","error":"reason"}\n
+Metadata line:
+```
+{"status":"error","error":"reason"}\n
+```
+
 No audio data follows.
 
 ## Summary 
