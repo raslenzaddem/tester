@@ -253,17 +253,125 @@ No audio data follows.
 | model subprocess       ->  ModelProcess instance  | Metadata     | JSON + "\n"   | UTF-8 encoding |
 | model subprocess       ->  ModelProcess instance  | Metadata     | Audio         | Raw bytes      |
 
-| Direction                                         | Data Type | Format        | Encoding       |
-| :------------------------------------------------ | :-------: | :------------ | :------------- |
-| ModelProcess instance → model subprocess          | Command   | JSON + `"\n"` | UTF-8 encoding |
-| model subprocess → ModelProcess instance          | Metadata  | JSON + `"\n"` | UTF-8 encoding |
-| model subprocess → ModelProcess instance          | Audio     | Binary        | Raw bytes      |
-
-| Direction                                         | Data Type | Format        | Encoding       |
-| :------------------------------------------------ | :-------: | :------------ | :------------- |
-| ModelProcess instance → model subprocess          | Command   | JSON + `"\n"` | UTF-8 encoding |
-| model subprocess → ModelProcess instance          | Metadata  | JSON + `"\n"` | UTF-8 encoding |
-| model subprocess → ModelProcess instance          | Audio     | Binary        | Raw bytes      |
-
 PS: At the models subprocess level ran in persistant mode (in contrast to run-once mode), stdout messages (e.g print functions ) are redirected to stderr and error cases were handled to be sent as an UTF-8 encode JSON files to be dealt with at the reciever end (ModelProcess instances).
+
+# TTS Models Used in the Project
+This project integrates two main families of TTS models: Kokoro (for English and French) and MixerTTS + Vocos (for Arabic). Both are selected for their lightweight design, CPU‑compatibility, and permissive licenses (MIT/Apache 2.0).
+
+## Selection Criteria
+All chosen models shall respect the following constraints:
+
+- Lightweight (low RAM consumption)
+- CPU‑only (no CUDA/GPU required)
+- Real‑time capable (response time < 2 seconds)
+- Commercial‑friendly licence (MIT, Apache 2.0)
+
+## Kokoro (English & French)
+Kokoro is based on the KPipeline architecture. The heavy neural network (KModel) is loaded only once and shared across language‑specific pipelines.
+```
+# Shared neural model
+shared_model = KModel(repo_id='hexgrad/Kokoro-82M')
+
+# Lightweight text processors (one per language)
+pipeline_en = KPipeline(lang_code='a', model=shared_model)   # American English
+pipeline_fr = KPipeline(lang_code='f', model=shared_model)   # French
+```
+
+Model size: 82M parameters (neural net) + small language‑specific rules.
+Output quality: excellent for English and French.
+
+## Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic)
+For Arabic, we benchmarked three text‑to‑mel models (FastPitch, Mixer128, Mixer80) and three vocoders (HiFi‑GAN, Vocos22, Vocos44).
+
+### What is a Mel‑spectrogram?
+Human hearing perceives frequency logarithmically (pitch is not linear). A mel‑spectrogram converts linear frequency bins into mel‑scale bins, mimicking human ear sensitivity.
+The conversion formula is:
+
+A mel‑spectrogram with 80 bins means the frequency axis is divided into 80 mel‑scale bands. This is the standard input for many TTS vocoders (e.g., HiFi‑GAN, Vocos). The number of bins determines the frequency resolution; 80 bins is a good trade‑off between detail and computational cost.
+
+|Model	    |Type	    |#Parameters|	Output              |
+|-----------|-----------|-----------|-----------------------|
+|FastPitch	|Text → Mel	|46.3 M	Mel |(80 bins, 22.05 kHz)   |
+|Mixer128	|Text → Mel	|2.9 M	Mel |(80 bins, 22.05 kHz)   |
+|Mixer80	|Text → Mel	|2.9 M	Mel |(80 bins, 22.05 kHz)   |
+|HiFi‑GAN	|Mel → Wave	|13.9 M	    |Waveform (22.05 kHz)   |
+|Vocos22	|Mel → Wave	|13.4 M	    |Waveform (22.05 kHz)   |
+|Vocos44	|Mel → Wave	|14.0 M	    |Waveform (44.1 kHz)    |
+
+Note: HiFi‑GAN and Vocos22/44 artificially extend the audio bandwidth to 11 kHz (HiFi‑GAN) or 22 kHz (Vocos44). However, the true effective bandwidth is limited by the mel‑spectrogram’s frequency range (around 8 kHz for the 22.05 kHz models).
+
+### Benchmark Results (Arabic, diacritized input)
+We measured inference time on CPU (no GPU). The key observations:
+- Without diacritics (plain Arabic text), all models produce bad pronunciation (rejected).
+- FastPitch degrades after 33 seconds of audio.
+- Remaining valid combinations were evaluated for quality and response time.
+
+| Text→Mel  | Vocoder   | Diacritics | Time (s) | Comment                                           |
+|-----------|-----------|------------|----------|---------------------------------------------------|
+| fastpitch | hifigan   | Y          | 16.59    | degrades after 33s                                |
+| fastpitch | hifigan   | N          | 13.83    | bad                                               |
+| fastpitch | vocos     | Y          | 21.00    | slightly better                                   |
+| fastpitch | vocos     | N          | 2.70     | bad                                               |
+| fastpitch | vocos44   | Y          | 34.90    | slightly better, small mistakes                   |
+| mixer128  | hifigan   | Y          | 25.00    | good, lacks stops at “.”                          |
+| mixer128  | hifigan   | N          | 11.38    | bad                                               |
+| mixer128  | vocos     | Y          | 1.35     | overall good                                      |
+| mixer128  | vocos     | N          | 1.19     | bad                                               |
+| mixer128  | vocos44   | Y          | 1.60     | better                                            |
+| mixer128  | vocos44   | N          | 1.33     | bad                                               |
+| mixer80   | hifigan   | Y          | 20.00    | better                                            |
+| mixer80   | hifigan   | N          | 11.64    | bad                                               |
+| mixer80   | vocos     | Y          | 1.38     | best balance                                      |
+| mixer80   | vocos     | N          | 1.16     | bad                                               |
+| mixer80   | vocos44   | Y          | 1.48     | also good but slower than vocos22                 |
+| mixer80   | vocos44   | N          | 1.33     | bad                                               |
+
+Conclusion: The combination mixer80 + vocos22 gives the best practical result:
+
+- Total parameters: 2.9 M (mixer80) + 13.4 M (vocos22) = 16.3 M
+- Response time: ~1.4 seconds for a typical sentence
+- Quality: clear, natural, no degradation over long text
+
+### Diacritization (Tashkeel) for Arabic
+Several diacritization models were tested:
+
+- shakkala, shakkelha, catt‑eo – initial candidates. catt‑eo was selected for its audible correctness (better than visible diacritic anomalies).
+- SILMA – good state‑of‑the‑art but slow for real‑time CPU usage.
+- Fine‑Tashkeel (ByT5) – excellent accuracy, but:
+    - Too slow for real‑time CPU.
+    - Optimisations (caching, static KV, ONNX export) either worsened latency or were incompatible due to the model’s age and reliance on a GPU.
+
+Decision: Diacritization is delegated to a separate AI model (outside this TTS service). The current pipeline expects already diacritized Arabic text.
+
+### Final Pipeline (Diacritization omitted)
+
+Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kokoro handles English and French. Both are integrated into the unified dispatcher framework.
+```
+1. Arabic text (diacritized)
+                │
+                ▼
+┌─────────────────────────────────┐
+│ 2. Phonemizer (internal)        │
+│              → Phonemes         │
+└─────────────────────────────────┘
+                │
+                ▼
+3. Tokenizer → token IDs
+                │
+                ▼
+┌─────────────────────────────────┐
+│ 4. Mixer80 (Text → Mel)         │
+│   → Mel spectrogram (80 bins)   │
+└─────────────────────────────────┘
+                │
+                ▼
+5. Vocos22 (Mel → Wave) → waveform (22.05 kHz)
+                │
+                ▼
+┌─────────────────────────────────┐
+│ 6. WAV to MP3 converter         │
+│     → MP3 audio bytes           │
+└─────────────────────────────────┘
+```
+
 
