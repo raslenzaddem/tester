@@ -91,28 +91,37 @@ The following figure illustrates the general execution flow in the run-as-a-serv
 7. uvicorn.run() starts the ASGI (Asynchronous Server Gateway Interface) server 
                    │
                    ▼
-8. The TTSService instance instantiates ModelRegistry class that handles (create/shutdown/register) ModelProcess instances: models are defined in the config.yaml file. The start_all method of ModelRegistry class checks if models environment is properly built and invoque the correspoding start() method of the every ModelProcess instance. It finally outputs the success rate of loaded models and list the models by name. 
+8. The TTSService instance instantiates ModelRegistry class that handles (create/shutdown/register) ModelProcess instances: models are defined in the config.yaml file.
+The start_all method of ModelRegistry class checks if models environment is properly built and invoque the correspoding start() method of the every ModelProcess instance.
+It finally outputs the success rate of loaded models and list the models by name. 
                    │
                    ▼
-9. Each ModelProcess instance defines methods to start, stop, request a audio generation of the associated model subprocess. The established IPC (Inter-Process Communication) is ensured via stdin and stdout pipes and each model subprocess is launched with the corresponding venv (pointing to the corresponding python and pip executable). Once the connection is established, the server stays idle for all models to load properly. The server keeps running even if all models fail to load but would not accept any HTTP requests if that request requires a model that failed to load.
+9. Each ModelProcess instance defines methods to start, stop, request a audio generation of the associated model subprocess.
+The established IPC (Inter-Process Communication) is ensured via stdin and stdout pipes and each model subprocess is launched with the corresponding venv (pointing to the corresponding python and pip executable).
+Once the connection is established, the server stays idle for all models to load properly. The server keeps running even if all models fail to load but would not accept any HTTP requests if that request requires a model that failed to load.
                    │
                    ▼
-10. Each created model subprocess has its own defined lifecycle. Once started, it loads the corresponding AI model and pipeline and signals that to the corresponding Model Process instance via its stdout and passively waits for tts-requests: This is ensured by a blocked while loop.
+10. Each created model subprocess has its own defined lifecycle.
+Once started, it loads the corresponding AI model and pipeline and signals that to the corresponding Model Process instance via its stdout and passively waits for tts-requests.
+This is ensured by a blocked while loop.
                    │
                    ▼
-11. Once a ModelProcess instance recieve a confirmation that the corresponding model is loaded, the FastAPI start accepting HTTP RESTful request for that specific model".
+11. Once a ModelProcess instance recieve a confirmation that the corresponding model is loaded, the FastAPI start accepting HTTP RESTful request for that specific model.
                    │
                    ▼
-12. Once the Server recieves a tts request, it delegates the responsibility to the corresponding subprocess dynamically based on the requested language. IT waits for a response for both success and error scenarios.
+12. Once the Server recieves a tts request, it delegates the responsibility to the corresponding subprocess dynamically based on the requested language.
+IT waits for a response for both success and error scenarios
                    │
                    ▼
 13. The passively awaiting AI model subprocess (Kokoro_en_fr for english and french and Mixer80Vocos_ar) recieves via its stdin the tts request in the form of a UTF-8-encoded json document, decode it, feed the corresponding text to its pipeline and generate the corresponding mp3 audio Bytes
                    │
                    ▼
-14. The Corresponding AI subprocess sends the meta data of the generated mp3 audio bytes in the form of UTF-8 encode json document then the raw audio bytes via its stdout. The subprocess wait passivey for the next request.
+14. The Corresponding AI subprocess sends the meta data of the generated mp3 audio bytes in the form of UTF-8 encode json document then the raw audio bytes via its stdout.
+The subprocess wait passivey for the next request.
                    │
                    ▼
-15. The corresponding ModelProcess recieves the metadata, decode it back int json file to get the length of the expected bytes in case of success or catch the corresponsing error otherwise to raise HTTPException. In case of success, it recieves the bytes and stream them back Via HTTPResponse.
+15. The corresponding ModelProcess recieves the metadata, decode it back int json file to get the length of the expected bytes in case of success or catch the corresponsing error otherwise to raise HTTPException.
+In case of success, it recieves the bytes and stream them back Via HTTPResponse.
                    │
                    ▼
 16. The FASTApi server recieves a shutdown signal (CTR+C) and kill all subprocesses gracefully before terminating the application.
