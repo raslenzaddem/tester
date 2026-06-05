@@ -7,33 +7,63 @@ This service provides a framewok for building, running AI models in run-once and
 
 # Table of content:
 
-- service overall dependencies
-- Development and testing notes
-- Architecture Overview and consideration
-  - Architecture consideration
-  - Architecture overview
-- REST HTTP Protocol (TTS Service ↔ Client)
-  - Endpoint
-  - Request Format
-- Model Configuration (models_config.yaml)
-- Communication Protocol (Model ↔ Dispatcher)
-  - Initialisation (model subprocess → ModelProcess instance )
-  - Request (ModelProcess instance → model subprocess)
-  - Response (model subprocess → ModelProcess instance)
-  - Summary
-- TTS Models Used in the Project
-  - Selection Criterion
-  - Kokoro (English & French)
-  - Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic)
-    - What is a Mel‑spectrogram?
-    - Benchmark Results (Arabic, diacritized input)
-    - Diacritization (Tashkeel) for Arabic
-    - Final Pipeline
-- Ressources and References
-  - kokoro Model
-  - Mixer80Vocos
-  - catt-eo
-- License & Attribution
+- service overall dependencies[##service overall dependencies]
+- Development and testing notes[##]
+- Architecture Overview and consideration[##]
+  - Architecture consideration[##]
+  - Architecture overview[##]
+- REST HTTP Protocol (TTS Service ↔ Client)[##]
+  - Endpoint[##]
+  - Request Format[##]
+- Model Configuration (models_config.yaml)[##]
+- Communication Protocol (Model ↔ Dispatcher)[##]
+  - Initialisation (model subprocess → ModelProcess instance )[##]
+  - Request (ModelProcess instance → model subprocess)[##]
+  - Response (model subprocess → ModelProcess instance)[##]
+  - Summary[##]
+- TTS Models Used in the Project[##]
+  - Selection Criterion[##]
+  - Kokoro (English & French)[##]
+  - Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic)[##]
+    - What is a Mel‑spectrogram?[##]
+    - Benchmark Results (Arabic, diacritized input)[##]
+    - Diacritization (Tashkeel) for Arabic[##]
+    - Final Pipeline[##]
+- Ressources and References[##]
+  - kokoro Model[##]
+  - Mixer80Vocos[##]
+  - catt-eo[##]
+- License & Attribution[##]
+
+## Table of Contents
+
+- [Service Overall Dependencies](##service-overall-dependencies)
+- [Development and Testing Notes](##development-and-testing-notes)
+- [Architecture Overview and Consideration](##architecture-overview-and-consideration)
+  - [Architecture Consideration](###architecture-consideration)
+  - [Architecture Overview](###architecture-overview)
+- [REST HTTP Protocol (TTS Service ↔ Client)](##rest-http-protocol-tts-service--client)
+  - [Endpoint](###endpoint)
+  - [Request Format](###request-format)
+- [Model Configuration (models_config.yaml)](##model-configuration-models_configyaml)
+- [Communication Protocol (Model ↔ Dispatcher)](##communication-protocol-model--dispatcher)
+  - [Initialisation (model subprocess → ModelProcess instance)](###initialisation-model-subprocess--modelprocess-instance)
+  - [Request (ModelProcess instance → model subprocess)](###request-modelprocess-instance--model-subprocess)
+  - [Response (model subprocess → ModelProcess instance)](###response-model-subprocess--modelprocess-instance)
+  - [Summary](###summary)
+- [TTS Models Used in the Project](##tts-models-used-in-the-project)
+  - [Selection Criterion](###selection-criterion)
+  - [Kokoro (English & French)](###kokoro-english--french)
+  - [Mixer80Vocos: Mixer80 + Vocos (vocos22) (Arabic)](###mixer80vocos-mixer80--vocos-vocos22-arabic)
+    - [What is a Mel‑spectrogram?](####what-is-a-melspectrogram)
+    - [Benchmark Results (Arabic, diacritized input)](####benchmark-results-arabic-diacritized-input)
+    - [Diacritization (Tashkeel) for Arabic](####diacritization-tashkeel-for-arabic)
+    - [Final Pipeline](####final-pipeline)
+- [Ressources and References](##ressources-and-references)
+  - [kokoro Model](###kokoro-model)
+  - [Mixer80Vocos](###mixer80vocos)
+  - [catt-eo](###catt-eo)
+- [License & Attribution](##license--attribution)
 
 
 ## service overall dependencies:
