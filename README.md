@@ -1,20 +1,130 @@
-Global environment requiurements:
-- python version mentionned in the yaml file for both models: 3.14.3 for arabic and 3.11 for english and french 
-- Python 3.14.3 was used as the global python interpreter
-- ffmpeg and espeak-ng shall be configured as well
 
-# TTS Service – AI Backend for Text-to-Speech
+
+# TTS Service – AI Backend for Text-to-Speech:
 
 This service provides a unified HTTP REST API for text-to-speech synthesis using multiple TTS models (Kokoro, Mixer80+Vocos). It manages model lifecycles, handles language routing, and streams audio responses.
+This service provides a framewok for building, running AI models in run-once and server/persistent mode.
 
-## Architecture Overview
+# Table of content:
+
+- service overall dependencies
+- Development and testing notes
+- Architecture Overview and consideration
+  - Architecture consideration
+  - Architecture overview
+- REST HTTP Protocol (TTS Service ↔ Client)
+  - Endpoint
+  - Request Format
+- Model Configuration (models_config.yaml)
+- Communication Protocol (Model ↔ Dispatcher)
+  - Initialisation (model subprocess → ModelProcess instance )
+  - Request (ModelProcess instance → model subprocess)
+  - Response (model subprocess → ModelProcess instance)
+  - Summary
+- TTS Models Used in the Project
+  - Selection Criterion
+  - Kokoro (English & French)
+  - Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic)
+    - What is a Mel‑spectrogram?
+    - Benchmark Results (Arabic, diacritized input)
+    - Diacritization (Tashkeel) for Arabic
+    - Final Pipeline
+- Ressources and References
+  - kokoro Model
+  - Mixer80Vocos
+  - catt-eo
+- License & Attribution
+
+
+## service overall dependencies:
+Global environment requiurements:
+- python version mentionned in the yaml file for both models: 3.14.3 for arabic and 3.11 for english and french 
+- Python 3.14.3 was used as the global python interpreter 
+- ffmpeg and espeak-ng shall be configured as well
+
+For future reference, the benchmarking of mentionned models were done on local machine:
+- CPU: 11th Gen Intel(R) Core(TM) i7-11800H @ 2.3GHz
+- RAM: 40 GB
+
+PS: To install python3.11 for the kokoro model, run these commands (tested with WSL):
+```bash
+sudo apt update
+sudo apt install software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3.11-dev
+```
+To verify installation:
+```bash
+python3.11 --version
+```
+
+## Development and testing notes:
+- Develoment notes:
+    - The following work was firstly developped with VS code within Windows then was tested for LINUX Ubuntu distribution using WSL.
+    - At first the models were tested, ran and benchmarked in isolated projects and python venvs, then were tested within the framework (building, run-once mode, persistent/server mode).
+    - A general venv was created to wrap the service and configure general requirements as it prohibited or risky to do directly within WSl.
+    - Postman was used to test the serivce endpoint.
+    - For the WINDOWS OS case the tts-service was tested using postman then from the fronend.
+    - For Linux Ubuntu (WSL), it was only tested with Postman.
+    - The testing considered requesting the tts service with english, french, and arabic texts. 
+
+- Testing notes:
+    - The overall results showcased a response bounded by a maximum response time of 6 seconds for the kokoro model and two seconds of the Mixer80Vocos case.
+    - The used models are considered lightweight ins terms of RAM consumption and number of parameters relatively to the current state-of-art and CPU-use-case.
+    - The lifecycle defined for persistent/server mode leverage one-time model-loading which optimizes the response time.
+    - A possible optimization is localized at the IPC level within the framework. It would consists of defining a set of worker and input/output pipes for parallel requests: the read/write operations with pipes are considered critical sections; such optimization consideration is adviced to be delegated as a layer added to the AI model subprocesses.
+    
+
+## Architecture Overview and consideration:
+
+### Architecture consideration:
 
 A dedicated framework was implemented to take into account these considerations:
-- The scalability of the used models: To make it easy to test, run and integrate each model within the framework
-- The specific dependencies and requirements of each model: Each model was wrapped within its own virtual environment (venv). A proper isolation is necessary. This isolation take into consideration the specific Python version that was used to implement the model, the plateform specific commands (Windows and Linux OS) and the relates dependencies (requirements.txt files)
-- The separation of concerns: The modularity of the dispatcher and the isolation of each model to delegate each part its responsibility and to facilitate debugging and future improvements
+- The scalability of the used models: To make it easy to test, run and integrate each model within the framework.
+- The isolation of each model to delegate each part its responsibility and to facilitate debugging and future improvements.
+  - The specific dependencies and requirements of each model: Each model was wrapped within its own virtual environment (venv). A proper isolation is necessary. This isolation take into consideration the specific Python version that was used to implement the model, the plateform specific commands (Windows and Linux OS) and the related dependencies (requirements.txt files).
+- Modularitty and separation of concerns:
+  - The dispatcher component (dispatcher.py) is the main entry point of the tts-service and defines the proper work flow:
+    - building mode (create the corresponding venv and install related dependencies): 
+    ```bash
+    python dispatcher.py build-all
+    ```
 
-The following Figure summarizes the architecture of the framework
+    - running a specific model for isolate testing and debugging (model IDs are defined in the config.yaml file) in run-once mode:
+    ```bash
+    python dispatcher.py run-model <model-name>
+    ```
+
+    - running all models sequentially in run-once mode:
+    ```bash
+    python dispatcher.py run-all-models
+    ```
+
+    - running in server mode (persistant mode for AI models) with optional flags:
+    ```bash
+    python dispatcher.py serve --host <host> --port <port>
+    ```
+
+    - PS: server mode uses uvicorn but "--reload" is not configured yet.
+
+  -  The server component (server.py) is delegated the responsability of initializing, launching and handling a FASTapi application:
+    - It can only be ran by the dispatcher.
+    - It is responsible for handling AI models subprocesses in persistant mode by defining lifecycle handling mechanisms.
+    - Each AI model subprocess is handled by its own venv defined in the config.yaml file, built in the model's specific directory.
+    - The server component is is responsible of channeling the incoming TTS requests to the proper AI model subprocess by language:
+      - If the requested language is either french "fr" or english "en", the tts request is delegated to the Kokoro AI model subprocess.
+      - If the requested language is arabic "ar" the tts request is delegated to the Mixer80Vocos AI model subprocess.
+      - It recieves the status (init, success, error) of the each AI model subprocess and acts accordingly.
+  
+  - Each AI model subprocess is responsible for the TTS conversion of the provided text and the requested language (fr, ar, en):
+    - The Kokoro AI model subprocess is responsible for converting either english or french language TTS requests and eventually sends raw MP3 audio bytes.
+    - The Kokoro AI model subprocess is responsible for converting either arabic language TTS requests and eventually sends raw MP3 audio bytes.
+    - Each model can be ran directly using its own main function, add "--persistent" flag, to run them in persistent mode. But the corresponsing venv must be activated
+
+### Architecture overview:
+
+The following Figure summarizes the architecture of the framework:
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         DISPATCHER (orchestrator)                           │
@@ -175,7 +285,59 @@ The following figure illustrates the general execution flow in the run-as-a-serv
 └───────────────────────────────────────────────────────────────────────────────────────────┘
 ```
                     
-## Model Configuration (models_config.yaml)
+## REST HTTP Protocol (TTS Service ↔ Client):
+The TTS service exposes a single HTTP endpoint for speech synthesis. Clients communicate with the service using standard HTTP requests.
+
+### Endpoint:
+- POST /synthesize
+- The service was tested on localhos, port 8000: "http://localhost:8000/synthesize".
+
+### Request Format:
+- Content-Type: application/json
+- Body: JSON object with the following schema:
+```json
+{
+  "text": "string",
+  "language": "string"
+}
+```
+
+| Field    | Type    | Required | Description                                                                  |
+|----------|---------|----------|------------------------------------------------------------------------------|
+| text     | string  | Yes      | The text to be synthesized. Must be written in the language specified below. |
+| language | string  | Yes      | Language code for the input text. Supported values: "en", "fr", "ar".        |
+
+- Language codes:
+  - "en" for English.
+  - "fr" for French.
+  - "ar" for Arabic.
+
+These are samples of the tested requests:
+- French (fr):
+```
+{
+    "text": "Notre plus grande peur n'est pas de manquer de force. Notre plus grande peur est d'être puissants au-delà de toute mesure.",
+    "language": "fr"
+}
+```
+
+- Arabic (ar) - diacritized arabic text:
+```
+{
+   "text":  " هُوَ دُرَّةُ التُّرَاثِ الْعَالَمِيِّ. وَوَاحِدٌ مِنْ أَفْضَلِ كُتُبِ الْأَدَبِ الَّتِي تَخَطَّتْ أُطُرَ الْمَكَانِ وَحُدُودَ الزَّمَانِ، لِتَعِيشَ بَيْنَنَا حَتَّى الْيَوْمِ .",
+   "language": "ar"
+}
+```
+
+- English (en)
+```
+{
+    "text": "Our deepest fear is not that we are inadequate. Our deepest fear is that we are powerful beyond measure.",
+    "language": "en"
+}
+```
+
+## Model Configuration (models_config.yaml):
 
 Each model is defined with its own virtual environment, dependencies, and runtime script. The general schema of the configuration yaml file is presented as follows:
 
@@ -225,22 +387,21 @@ models:                       # <-- mandatory top-level key
     script: "string"          # Python script to execute (must support --persistent flag)
 ```
 
-# Communication Protocol (Model ↔ Dispatcher)
+## Communication Protocol (Model ↔ Dispatcher):
 The model process communicates via stdin/stdout using a simple line‑based JSON protocol. At the sending part, the JSON document is encoded into UTF-8 bytes.
 The process is reversed at the recieving end. The JSON document must be followed by "\n" to used as line separator essential for IPC exchange. 
 
-## Initialisation (model subprocess → ModelProcess instance ):
-On startup, model must send 
+### Initialisation (model subprocess → ModelProcess instance ):
 ```
 {"status":"init"}\n
 ```
 to signal readiness.
 
-## Request (ModelProcess instance → model subprocess):
+### Request (ModelProcess instance → model subprocess):
 ```
 {"action": "synthesize", "text": "...", "language": "ar"}\n
 ```
-## Response (model subprocess → ModelProcess instance):
+### Response (model subprocess → ModelProcess instance):
 - Success case:
 
 Metadata line: 
@@ -259,7 +420,7 @@ Metadata line:
 
 No audio data follows.
 
-## Summary 
+### Summary:
 | Direction                                         | Data type    | Format        | Encoding       |
 |---------------------------------------------------|--------------|---------------|----------------|
 | ModelProcess instance  -> model subprocess        | Command      | JSON + "\n"   | UTF-8 encoding |
@@ -268,10 +429,10 @@ No audio data follows.
 
 PS: At the models subprocess level ran in persistant mode (in contrast to run-once mode), stdout messages (e.g print functions ) are redirected to stderr and error cases were handled to be sent as an UTF-8 encode JSON files to be dealt with at the reciever end (ModelProcess instances).
 
-# TTS Models Used in the Project
+## TTS Models Used in the Project:
 This project integrates two main families of TTS models: Kokoro (for English and French) and MixerTTS + Vocos (for Arabic). Both are selected for their lightweight design, CPU‑compatibility, and permissive licenses (MIT/Apache 2.0).
 
-## Selection Criteria
+### Selection Criterion:
 All chosen models shall respect the following constraints:
 
 - Lightweight (low RAM consumption)
@@ -279,9 +440,9 @@ All chosen models shall respect the following constraints:
 - Real‑time capable (response time < 2 seconds)
 - Commercial‑friendly licence (MIT, Apache 2.0)
 
-## Kokoro (English & French)
-Kokoro is based on the KPipeline architecture. The heavy neural network (KModel) is loaded only once and shared across language‑specific pipelines.
-```
+### Kokoro (English & French):
+- Kokoro is based on the KPipeline architecture. The heavy neural network (KModel) is loaded only once and shared across language‑specific pipelines.
+```python
 # Shared neural model
 shared_model = KModel(repo_id='hexgrad/Kokoro-82M')
 
@@ -290,30 +451,38 @@ pipeline_en = KPipeline(lang_code='a', model=shared_model)   # American English
 pipeline_fr = KPipeline(lang_code='f', model=shared_model)   # French
 ```
 
-Model size: 82M parameters (neural net) + small language‑specific rules.
-Output quality: excellent for English and French.
+- Model size: 82M parameters (neural net) + small language‑specific rules.
+- Output quality: excellent for English and French. It does not support Arabic.
 
-## Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic)
+- This approach optimized the RAM usage of the Kokoro model: The KModel itself is language blind it converts phonemes (vocal/sound units) into wav format (audible sound);
+Loading the the KModel twice unecessary.
+
+- For model benchmarking refer/run to the "kokoro_benchmark.py" python script.
+- For english language, an american accent was used identified by "af_heart". The model natively offers multiple choices for both american and british accents.
+- The only available french voice available for the Kokoro model is refered as "ff_siwis". The voice be indexed but not downloaded. In this case run the "voice_testers.py" python script.
+- Refer to the Ressources and References section of this documentation for more information about the model.
+
+### Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic):
 For Arabic, we benchmarked three text‑to‑mel models (FastPitch, Mixer128, Mixer80) and three vocoders (HiFi‑GAN, Vocos22, Vocos44).
 
-### What is a Mel‑spectrogram?
+#### What is a Mel‑spectrogram?:
 Human hearing perceives frequency logarithmically (pitch is not linear). A mel‑spectrogram converts linear frequency bins into mel‑scale bins, mimicking human ear sensitivity.
 The conversion formula is:
 
 A mel‑spectrogram with 80 bins means the frequency axis is divided into 80 mel‑scale bands. This is the standard input for many TTS vocoders (e.g., HiFi‑GAN, Vocos). The number of bins determines the frequency resolution; 80 bins is a good trade‑off between detail and computational cost.
 
-|Model	    |Type	    |#Parameters|	Output              |
+|Model	    |Type	      |#Parameters|	Output                |
 |-----------|-----------|-----------|-----------------------|
 |FastPitch	|Text → Mel	|46.3 M	Mel |(80 bins, 22.05 kHz)   |
-|Mixer128	|Text → Mel	|2.9 M	Mel |(80 bins, 22.05 kHz)   |
-|Mixer80	|Text → Mel	|2.9 M	Mel |(80 bins, 22.05 kHz)   |
-|HiFi‑GAN	|Mel → Wave	|13.9 M	    |Waveform (22.05 kHz)   |
-|Vocos22	|Mel → Wave	|13.4 M	    |Waveform (22.05 kHz)   |
-|Vocos44	|Mel → Wave	|14.0 M	    |Waveform (44.1 kHz)    |
+|Mixer128	  |Text → Mel	|2.9 M	Mel |(80 bins, 22.05 kHz)   |
+|Mixer80	  |Text → Mel	|2.9 M	Mel |(80 bins, 22.05 kHz)   |
+|HiFi‑GAN  	|Mel → Wave	|13.9 M	    |Waveform (22.05 kHz)   |
+|Vocos22  	|Mel → Wave	|13.4 M	    |Waveform (22.05 kHz)   |
+|Vocos44  	|Mel → Wave	|14.0 M	    |Waveform (44.1 kHz)    |
 
 Note: HiFi‑GAN and Vocos22/44 artificially extend the audio bandwidth to 11 kHz (HiFi‑GAN) or 22 kHz (Vocos44). However, the true effective bandwidth is limited by the mel‑spectrogram’s frequency range (around 8 kHz for the 22.05 kHz models).
 
-### Benchmark Results (Arabic, diacritized input)
+#### Benchmark Results (Arabic, diacritized input):
 We measured inference time on CPU (no GPU). The key observations:
 - Without diacritics (plain Arabic text), all models produce bad pronunciation (rejected).
 - FastPitch degrades after 33 seconds of audio.
@@ -345,7 +514,7 @@ Conclusion: The combination mixer80 + vocos22 gives the best practical result:
 - Response time: ~1.4 seconds for a typical sentence
 - Quality: clear, natural, no degradation over long text
 
-### Diacritization (Tashkeel) for Arabic
+#### Diacritization (Tashkeel) for Arabic:
 Several diacritization models were tested:
 
 - shakkala, shakkelha, catt‑eo – initial candidates. catt‑eo was selected for its audible correctness (better than visible diacritic anomalies).
@@ -354,9 +523,9 @@ Several diacritization models were tested:
     - Too slow for real‑time CPU.
     - Optimisations (caching, static KV, ONNX export) either worsened latency or were incompatible due to the model’s age and reliance on a GPU.
 
-Decision: Diacritization is delegated to a separate AI model (outside this TTS service). The current pipeline expects already diacritized Arabic text.
+Decision: Diacritization is delegated to a separate AI model (outside this TTS service). The current pipeline expects already diacritized Arabic text. Yet the cat-eo is kept in use within the pipeline.
 
-### Final Pipeline (Diacritization omitted)
+#### Final Pipeline:
 
 Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kokoro handles English and French. Both are integrated into the unified dispatcher framework.
 ```
@@ -387,4 +556,48 @@ Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kok
 └─────────────────────────────────┘
 ```
 
+## Ressources and References:
+
+### kokoro Model:
+- Reference: hexgrad (2024). *Kokoro-82M* (Version v0.19) [Text-to-Speech Model]. Hugging Face. https://huggingface.co/hexgrad/Kokoro-82M
+- Technical details: The model is based on StyleTTS2 [7†L9-L10], with 82 million parameters, and is licensed under Apache 2.0 [8†L11-L13]. It was trained on less than 100 hours of audio data [8†L18-L19].
+
+### Mixer80Vocos:
+
+- Reference: nipponjo (2024). tts_arabic (Version v0.1) [Text-to-Speech Models]. GitHub. https://github.com/nipponjo/tts_arabic / https://huggingface.co/nipponjo/tts-arabic-onnx
+  - The repository also has an accompanying manuscript: Arabic TTS with FastPitch: Reproducible Baselines, Adversarial Training, and Oversmoothing Analysis (arXiv:2512.00937).
+  - speakers reference: [https://nipponjo.github.io/tts-arabic-speakers/](https://nipponjo.github.io/tts-arabic-speakers/): 4 voice references were provided (Men: S0, S1; women: S3, S4) - S1 was selected.
+
+- Technical details:
+  - The mixer80 model is a MixerTTS model, a non‑autoregressive architecture based on MLP‑Mixer adapted for speech synthesis. It has 1.5M parameters and generates 80‑bin mel‑spectrograms.
+  - The vocos model is a GAN‑based vocoder that directly generates Fourier spectral coefficients, achieving state‑of‑the‑art audio quality with an order‑of‑magnitude speed improvement over time‑domain vocoders. It has 13.4M parameters and outputs 22.05kHz waveforms (with a vocos44 variant for 44.1kHz).
+  - Both models are distributed in the ONNX format for offline, CPU‑efficient inference. The mel‑spectrogram covers frequencies up to 8kHz; the vocoder artificially extends bandwidth to 11.025kHz (22.05kHz for vocos44).
+
+### catt-eo:
+- Reference: The model page lists it as a vowelizer for Arabic text, converted from a PyTorch checkpoint (best_eo_mlm_ns_epoch_193.pt) [0†L4-L7][7†L13].
+- Technical Basis: catt_eo is a character‑based transformer for Arabic diacritization, built on pretrained BERT‑like models [3†L8-L13][5†L4-L8].
+
+## License & Attribution
+
+This project uses the following third-party components:
+
+- **Kokoro** – Copyright (c) 2024 hexgrad.  
+  - Licensed under the Apache License, Version 2.0.  
+  - Source: [https://github.com/hexgrad/kokoro](https://github.com/hexgrad/kokoro)  
+  - A copy of the license is available at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
+
+- **Vocos** – Copyright (c) 2024 Language Technologies Unit, Barcelona Supercomputing Center.  
+  - Licensed under the **MIT License**.
+  - Source: [BSC-LT/vocos](https://github.com/langtech-bsc/vocos)  
+  - Model: `vocos22.onnx`
+
+- **MixerTTS (mixer88)** – Copyright (c) 2021 NVIDIA.  
+  - Licensed under the **Apache License 2.0**.  
+  - Source: [NVIDIA/NeMo](https://github.com/NVIDIA/NeMo)  
+  - Model: `mixer88.onnx`
+
+- **catt_eo** model by the CATT project (© Abjad AI)
+  - Licensed under the **Apache License 2.0**.
+  - Source: https://github.com/abjadai/catt
+  - Model: `cat-eo.onnx`
 
