@@ -483,6 +483,7 @@ Note: HiFi‑GAN and Vocos22/44 artificially extend the audio bandwidth to 11 
 
 #### Benchmark Results (Arabic, diacritized input):
 We measured inference time on CPU (no GPU). The key observations:
+
 - Without diacritics (plain Arabic text), all models produce bad pronunciation (rejected).
 - FastPitch degrades after 33 seconds of audio.
 - Remaining valid combinations were evaluated for quality and response time.
@@ -509,9 +510,11 @@ We measured inference time on CPU (no GPU). The key observations:
 
 Conclusion: The combination mixer80 + vocos22 gives the best practical result:
 
-- Total parameters: 2.9 M (mixer80) + 13.4 M (vocos22) = 16.3 M
-- Response time: ~1.4 seconds for a typical sentence
-- Quality: clear, natural, no degradation over long text
+- Total parameters: 2.9 M (mixer80) + 13.4 M (vocos22) = 16.3 M.
+- Response time: ~1.4 seconds for a typical sentence.
+- Quality: clear, natural, no degradation over long text.
+- The "models_onnx.py" file provides the needed ressources to download the corresponding onnx files. The onnx files are loaded once (for )the first time) into the "models_onnx" subdirectory. 
+- Refer to the Ressources and References section of this documentation for more information about the model.
 
 #### Diacritization (Tashkeel) for Arabic:
 Several diacritization models were tested:
@@ -571,6 +574,8 @@ Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kok
   - The mixer80 model is a MixerTTS model, a non‑autoregressive architecture based on MLP‑Mixer adapted for speech synthesis. It has 1.5M parameters and generates 80‑bin mel‑spectrograms.
   - The vocos model is a GAN‑based vocoder that directly generates Fourier spectral coefficients, achieving state‑of‑the‑art audio quality with an order‑of‑magnitude speed improvement over time‑domain vocoders. It has 13.4M parameters and outputs 22.05kHz waveforms (with a vocos44 variant for 44.1kHz).
   - Both models are distributed in the ONNX format for offline, CPU‑efficient inference. The mel‑spectrogram covers frequencies up to 8kHz; the vocoder artificially extends bandwidth to 11.025kHz (22.05kHz for vocos44).
+  - Refer to the Ressources and References section of this documentation for more information about the model.
+
 
 ### catt-eo:
 - Reference: The model page lists it as a vowelizer for Arabic text, converted from a PyTorch checkpoint (best_eo_mlm_ns_epoch_193.pt) [0†L4-L7][7†L13].
