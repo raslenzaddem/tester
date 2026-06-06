@@ -460,10 +460,6 @@ The conversion formula is:
 
 The conversion formula is:
 
-```latex
-m = 2595 \cdot \log_{10}\left(1 + \frac{f}{700}\right)
-```
-
 $$ 
 m = 2595 \cdot \log_{10}\left(1 + \frac{f}{700}\right)
 $$
