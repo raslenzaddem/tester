@@ -7,35 +7,35 @@ This service provides a framewok for building, running AI models in run-once and
 
 ## Table of Contents
 
-- [Service Overall Dependencies](#service-overall-dependencies)
-- [Development and Testing Notes](#development-and-testing-notes)
-- [Architecture Overview and Consideration](#architecture-overview-and-consideration)
-  - [Architecture Consideration](#architecture-consideration)
-  - [Architecture Overview](#architecture-overview)
-- [REST HTTP Protocol (TTS Service ↔ Client)](#rest-http-protocol-tts-service--client)
-  - [Endpoint](#endpoint)
-  - [Request Format](#request-format)
-- [Model Configuration (models_config.yaml)](#model-configuration-models_configyaml)
-- [Communication Protocol (Model ↔ Dispatcher)](#communication-protocol-model--dispatcher)
-  - [Initialisation (model subprocess → ModelProcess instance)](#initialisation-model-subprocess--modelprocess-instance)
-  - [Request (ModelProcess instance → model subprocess)](#request-modelprocess-instance--model-subprocess)
-  - [Response (model subprocess → ModelProcess instance)](#response-model-subprocess--modelprocess-instance)
-  - [Summary](#summary)
-- [TTS Models Used in the Project](#tts-models-used-in-the-project)
-  - [Selection Criterion](#selection-criterion)
-  - [Kokoro (English & French)](#kokoro-english--french)
-  - [Mixer80Vocos: Mixer80 + Vocos (vocos22) (Arabic)](#mixer80vocos-mixer80--vocos-vocos22-arabic)
-    - [What is a Mel‑spectrogram?](#what-is-a-melspectrogram)
-    - [Benchmark Results (Arabic, diacritized input)](#benchmark-results-arabic-diacritized-input)
-    - [Diacritization (Tashkeel) for Arabic](#diacritization-tashkeel-for-arabic)
-    - [Final Pipeline](#final-pipeline)
-- [Ressources and References](#ressources-and-references)
-  - [kokoro Model](#kokoro-model)
-  - [Mixer80Vocos](#mixer80vocos)
-  - [catt-eo](#catt-eo)
-- [License & Attribution](#license--attribution)
+- [1. Service Overall Dependencies](#1-service-overall-dependencies)
+- [2.Development and Testing Notes](#2-development-and-testing-notes)
+- [3. Architecture Overview and Consideration](#3-architecture-overview-and-consideration)
+  - [3.1 Architecture Consideration](#31-architecture-consideration)
+  - [3.2Architecture Overview](#32-architecture-overview)
+- [4. REST HTTP Protocol (TTS Service ↔ Client)](#4-rest-http-protocol-tts-service--client)
+  - [4.1 Endpoint](#41-endpoint)
+  - [4.2 Request Format](#42-request-format)
+- [5. Model Configuration (models_config.yaml)](#5-model-configuration-models_configyaml)
+- [6. Communication Protocol (Model ↔ Dispatcher)](#6-communication-protocol-model--dispatcher)
+  - [6.1 Initialisation (model subprocess → ModelProcess instance)](#61-initialisation-model-subprocess--modelprocess-instance)
+  - [6.2 Request (ModelProcess instance → model subprocess)](#62-request-modelprocess-instance--model-subprocess)
+  - [6.3 Response (model subprocess → ModelProcess instance)](#63-response-model-subprocess--modelprocess-instance)
+  - [6.4 Summary](#64-summary)
+- [7. TTS Models Used in the Project](#7-tts-models-used-in-the-project)
+  - [7.1 Selection Criterion](#71-selection-criterion)
+  - [7.2 Kokoro (English & French)](#72-kokoro-english--french)
+  - [7.3 Mixer80Vocos: Mixer80 and Vocos (Arabic)](#73-mixer80vocos-mixer80-and-vocos-arabic)
+    - [7.3.1 Mel Spectogram Definition](#731-mel-spectogram-definition)
+    - [7.3.2 Benchmark Results (Arabic, diacritized input)](#732-benchmark-results-arabic-diacritized-input)
+    - [7.3.3 Diacritization (Tashkeel) for Arabic](#733-diacritization-tashkeel-for-arabic)
+    - [7.3.4 Final Pipeline](#734-final-pipeline)
+- [8 Ressources and References](#8-ressources-and-references)
+  - [8.1 kokoro Model](#81-kokoro-model)
+  - [8.2 Mixer80Vocos](#82-mixer80vocos)
+  - [8.3 catt-eo](#83-catt-eo)
+- [9. License & Attribution](#9-license--attribution)
 
-## service overall dependencies:
+## 1. service overall dependencies:
 Global environment requiurements:
 - python version mentionned in the yaml file for both models: 3.14.3 for arabic and 3.11 for english and french 
 - Python 3.14.3 was used as the global python interpreter 
@@ -58,7 +58,7 @@ To verify installation:
 python3.11 --version
 ```
 
-## Development and testing notes:
+## 2. Development and testing notes:
 - Develoment notes:
     - The following work was firstly developped with VS code within Windows then was tested for LINUX Ubuntu distribution using WSL.
     - At first the models were tested, ran and benchmarked in isolated projects and python venvs, then were tested within the framework (building, run-once mode, persistent/server mode).
@@ -75,9 +75,9 @@ python3.11 --version
     - A possible optimization is localized at the IPC level within the framework. It would consist of defining a set of worker and input/output pipes for parallel requests: the read/write operations with pipes are considered critical sections; such optimization consideration is advised to be delegated as a layer added to the AI model subprocesses.
     
 
-## Architecture Overview and consideration:
+## 3. Architecture Overview and consideration:
 
-### Architecture consideration:
+### 3.1 Architecture consideration:
 
 A dedicated framework was implemented to take into account these considerations:
 - The scalability of the used models: To make it easy to test, run and integrate each model within the framework.
@@ -121,7 +121,7 @@ A dedicated framework was implemented to take into account these considerations:
     - The Mixer80Vocos subprocess is responsible for converting Arabic language TTS requests and eventually sends raw MP3 audio bytes.
     - Each model can be runn directly using its own main function, add "--persistent" flag, to run them in persistent mode. But the corresponsing venv must be activated
 
-### Architecture overview:
+### 3.2 Architecture overview:
 
 The following Figure summarizes the architecture of the framework:
 ```
@@ -284,14 +284,14 @@ The following Figure illustrates the general execution flow in the run-as-a-serv
 └───────────────────────────────────────────────────────────────────────────────────────────┘
 ```
                     
-## REST HTTP Protocol (TTS Service ↔ Client):
+## 4. REST HTTP Protocol (TTS Service ↔ Client):
 The TTS service exposes a single HTTP endpoint for speech synthesis. Clients communicate with the service using standard HTTP requests.
 
-### Endpoint:
+### 4.1 Endpoint:
 - POST /synthesize
 - The service was tested on localhost, port 8000: "http://localhost:8000/synthesize".
 
-### Request Format:
+### 4.2 Request Format:
 - Content-Type: application/json
 - Body: JSON object with the following schema:
 ```json
@@ -336,7 +336,7 @@ These are samples of the tested requests:
 }
 ```
 
-## Model Configuration (models_config.yaml):
+## 5. Model Configuration (models_config.yaml):
 
 Each model is defined with its own virtual environment, dependencies, and runtime script. The general schema of the configuration yaml file is presented as follows:
 
@@ -376,21 +376,21 @@ models:                       # <-- mandatory top-level key
     script: "string"          # Python script to execute (must support --persistent flag)
 ```
 
-## Communication Protocol (Model ↔ Dispatcher):
+## 6. Communication Protocol (Model ↔ Dispatcher):
 The model process communicates via stdin/stdout using a simple line‑based JSON protocol. At the sending part, the JSON document is encoded into UTF-8 bytes.
 The process is reversed at the recieving end. The JSON document must be followed by "\n" to be used as line separator essential for IPC exchange. 
 
-### Initialisation (model subprocess → ModelProcess instance ):
+### 6.1 Initialisation (model subprocess → ModelProcess instance):
 ```
 {"status":"init"}\n
 ```
 to signal readiness.
 
-### Request (ModelProcess instance → model subprocess):
+### 6.2 Request (ModelProcess instance → model subprocess):
 ```
 {"action": "synthesize", "text": "...", "language": "ar"}\n
 ```
-### Response (model subprocess → ModelProcess instance):
+### 6.3 Response (model subprocess → ModelProcess instance):
 - Success case:
 
 Metadata line: 
@@ -409,7 +409,7 @@ Metadata line:
 
 No audio data follows.
 
-### Summary:
+### 6.4 Summary:
 | Direction                                         | Data type    | Format        | Encoding       |
 |---------------------------------------------------|--------------|---------------|----------------|
 | ModelProcess instance  -> model subprocess        | Command      | JSON + "\n"   | UTF-8 encoding |
@@ -418,10 +418,10 @@ No audio data follows.
 
 PS: At the model subprocess level ran in persistent mode (in contrast to run-once mode), stdout messages (e.g print functions ) are redirected to stderr and error cases were handled to be sent as an UTF-8 encode JSON files to be dealt with at the reciever end (ModelProcess instances).
 
-## TTS Models Used in the Project:
+## 7. TTS Models Used in the Project:
 This project integrates two main families of TTS models: Kokoro (for English and French) and MixerTTS + Vocos (for Arabic). Both are selected for their lightweight design, CPU‑compatibility, and permissive licenses (MIT/Apache 2.0).
 
-### Selection Criterion:
+### 7.1 Selection Criterion:
 All chosen models shall respect the following constraints:
 
 - Lightweight (low RAM consumption)
@@ -429,7 +429,7 @@ All chosen models shall respect the following constraints:
 - Real‑time capable (response time < 2 seconds)
 - Commercial‑friendly licence (MIT, Apache 2.0)
 
-### Kokoro (English & French):
+### 7.2 Kokoro (English & French):
 - Kokoro is based on the KPipeline architecture. The heavy neural network (KModel) is loaded only once and shared across language‑specific pipelines.
 ```python
 # Shared neural model
@@ -451,13 +451,11 @@ Loading the the KModel twice unecessary.
 - The only available french voice available for the Kokoro model is refered as "ff_siwis". The voice be indexed but not downloaded. In this case run the "voice_testers.py" python script.
 - Refer to the Ressources and References section of this documentation for more information about the model.
 
-### Mixer80Vocos: Mixer80  + Vocos (vocos22) (Arabic):
+### 7.3 Mixer80Vocos: Mixer80 and Vocos (Arabic):
 For Arabic, we benchmarked three text‑to‑mel models (FastPitch, Mixer128, Mixer80) and three vocoders (HiFi‑GAN, Vocos22, Vocos44).
 
-#### What is a Mel‑spectrogram?:
+#### 7.3.1 Mel Spectogram Definition:
 Human hearing perceives frequency logarithmically (pitch is not linear). A mel‑spectrogram converts linear frequency bins into mel‑scale bins, mimicking human ear sensitivity.
-The conversion formula is:
-
 The conversion formula is:
 
 $$ 
@@ -477,7 +475,7 @@ A mel‑spectrogram with 80 bins means the frequency axis is divided into 80 mel
 
 Note: HiFi‑GAN and Vocos22/44 artificially extend the audio bandwidth to 11 kHz (HiFi‑GAN) or 22 kHz (Vocos44). However, the true effective bandwidth is limited by the mel‑spectrogram’s frequency range (around 8 kHz for the 22.05 kHz models).
 
-#### Benchmark Results (Arabic, diacritized input):
+#### 7.3.2 Benchmark Results (Arabic, diacritized input):
 We measured inference time on CPU (no GPU). The key observations:
 
 - Without diacritics (plain Arabic text), all models produce bad pronunciation (rejected).
@@ -512,7 +510,7 @@ Conclusion: The combination mixer80 + vocos22 gives the best practical result:
 - The "models_onnx.py" file provides the needed ressources to download the corresponding onnx files. The onnx files are loaded once (for )the first time) into the "models_onnx" subdirectory. 
 - Refer to the Ressources and References section of this documentation for more information about the model.
 
-#### Diacritization (Tashkeel) for Arabic:
+#### 7.3.3 Diacritization (Tashkeel) for Arabic:
 Several diacritization models were tested:
 
 - shakkala, shakkelha, catt‑eo – initial candidates. catt‑eo was selected for its audible correctness (better than visible diacritic anomalies).
@@ -523,7 +521,7 @@ Several diacritization models were tested:
 
 Decision: Diacritization is delegated to a separate AI model (outside this TTS service). The current pipeline expects already diacritized Arabic text. Yet the cat-eo is kept in use within the pipeline.
 
-#### Final Pipeline:
+#### 7.3.4 Final Pipeline:
 
 Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kokoro handles English and French. Both are integrated into the unified dispatcher framework.
 ```
@@ -554,13 +552,13 @@ Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kok
 └─────────────────────────────────┘
 ```
 
-## Ressources and References:
+## 8. Ressources and References:
 
-### kokoro Model:
+### 8.1 kokoro Model:
 - Reference: hexgrad (2024). *Kokoro-82M* (Version v0.19) [Text-to-Speech Model]. Hugging Face. https://huggingface.co/hexgrad/Kokoro-82M
 - Technical details: The model is based on StyleTTS2 [7†L9-L10], with 82 million parameters, and is licensed under Apache 2.0 [8†L11-L13]. It was trained on less than 100 hours of audio data [8†L18-L19].
 
-### Mixer80Vocos:
+### 8.2 Mixer80Vocos:
 
 - Reference: nipponjo (2024). tts_arabic (Version v0.1) [Text-to-Speech Models]. GitHub. https://github.com/nipponjo/tts_arabic / https://huggingface.co/nipponjo/tts-arabic-onnx
   - The repository also has an accompanying manuscript: Arabic TTS with FastPitch: Reproducible Baselines, Adversarial Training, and Oversmoothing Analysis (arXiv:2512.00937).
@@ -573,11 +571,11 @@ Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kok
   - Refer to the Ressources and References section of this documentation for more information about the model.
 
 
-### catt-eo:
+### 8.3 catt-eo:
 - Reference: The model page lists it as a vowelizer for Arabic text, converted from a PyTorch checkpoint (best_eo_mlm_ns_epoch_193.pt) [0†L4-L7][7†L13].
 - Technical Basis: catt_eo is a character‑based transformer for Arabic diacritization, built on pretrained BERT‑like models [3†L8-L13][5†L4-L8].
 
-## License & Attribution
+## 9. License & Attribution
 
 This project uses the following third-party components:
 
