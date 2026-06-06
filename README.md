@@ -62,9 +62,9 @@ python3.11 --version
 - Develoment notes:
     - The following work was firstly developped with VS code within Windows then was tested for LINUX Ubuntu distribution using WSL.
     - At first the models were tested, ran and benchmarked in isolated projects and python venvs, then were tested within the framework (building, run-once mode, persistent/server mode).
-    - A general venv was created to wrap the service and configure general requirements as it prohibited or risky to do directly within WSl.
+    - A general venv was created to wrap the service and configure general requirements as it was either prohibited or risky to do directly within WSl.
     - Postman was used to test the serivce endpoint.
-    - For the WINDOWS OS case the tts-service was tested using postman then from the fronend.
+    - For the WINDOWS OS case the tts-service was tested using postman then from the Frontend.
     - For Linux Ubuntu (WSL), it was only tested with Postman.
     - The testing considered requesting the tts service with english, french, and arabic texts. 
 
@@ -72,7 +72,7 @@ python3.11 --version
     - The overall results showcased a response bounded by a maximum response time of 6 seconds for the kokoro model and two seconds of the Mixer80Vocos case.
     - The used models are considered lightweight ins terms of RAM consumption and number of parameters relatively to the current state-of-art and CPU-use-case.
     - The lifecycle defined for persistent/server mode leverage one-time model-loading which optimizes the response time.
-    - A possible optimization is localized at the IPC level within the framework. It would consists of defining a set of worker and input/output pipes for parallel requests: the read/write operations with pipes are considered critical sections; such optimization consideration is adviced to be delegated as a layer added to the AI model subprocesses.
+    - A possible optimization is localized at the IPC level within the framework. It would consist of defining a set of worker and input/output pipes for parallel requests: the read/write operations with pipes are considered critical sections; such optimization consideration is advised to be delegated as a layer added to the AI model subprocesses.
     
 
 ## Architecture Overview and consideration:
@@ -83,7 +83,7 @@ A dedicated framework was implemented to take into account these considerations:
 - The scalability of the used models: To make it easy to test, run and integrate each model within the framework.
 - The isolation of each model to delegate each part its responsibility and to facilitate debugging and future improvements.
   - The specific dependencies and requirements of each model: Each model was wrapped within its own virtual environment (venv). A proper isolation is necessary. This isolation take into consideration the specific Python version that was used to implement the model, the plateform specific commands (Windows and Linux OS) and the related dependencies (requirements.txt files).
-- Modularitty and separation of concerns:
+- Modularity and separation of concerns:
   - The dispatcher component (dispatcher.py) is the main entry point of the tts-service and defines the proper work flow:
     - building mode (create the corresponding venv and install related dependencies): 
     ```bash
@@ -100,7 +100,7 @@ A dedicated framework was implemented to take into account these considerations:
     python dispatcher.py run-all-models
     ```
 
-    - running in server mode (persistant mode for AI models) with optional flags:
+    - running in server mode (persistent mode for AI models) with optional flags:
     ```bash
     python dispatcher.py serve --host <host> --port <port>
     ```
@@ -109,17 +109,17 @@ A dedicated framework was implemented to take into account these considerations:
 
   -  The server component (server.py) is delegated the responsability of initializing, launching and handling a FASTapi application:
     - It can only be ran by the dispatcher.
-    - It is responsible for handling AI models subprocesses in persistant mode by defining lifecycle handling mechanisms.
+    - It is responsible for handling AI models subprocesses in persistent mode by defining lifecycle handling mechanisms.
     - Each AI model subprocess is handled by its own venv defined in the config.yaml file, built in the model's specific directory.
-    - The server component is is responsible of channeling the incoming TTS requests to the proper AI model subprocess by language:
+    - The server component is responsible of channeling the incoming TTS requests to the proper AI model subprocess by language:
       - If the requested language is either french "fr" or english "en", the tts request is delegated to the Kokoro AI model subprocess.
       - If the requested language is arabic "ar" the tts request is delegated to the Mixer80Vocos AI model subprocess.
-      - It recieves the status (init, success, error) of the each AI model subprocess and acts accordingly.
+      - It receives the status (init, success, error) of the each AI model subprocess and acts accordingly.
   
   - Each AI model subprocess is responsible for the TTS conversion of the provided text and the requested language (fr, ar, en):
-    - The Kokoro AI model subprocess is responsible for converting either english or french language TTS requests and eventually sends raw MP3 audio bytes.
-    - The Kokoro AI model subprocess is responsible for converting either arabic language TTS requests and eventually sends raw MP3 audio bytes.
-    - Each model can be ran directly using its own main function, add "--persistent" flag, to run them in persistent mode. But the corresponsing venv must be activated
+    - The Kokoro subprocess is responsible for converting either English or French language TTS requests and eventually sends raw MP3 audio bytes.
+    - The Mixer80Vocos subprocess is responsible for converting Arabic language TTS requests and eventually sends raw MP3 audio bytes.
+    - Each model can be runn directly using its own main function, add "--persistent" flag, to run them in persistent mode. But the corresponsing venv must be activated
 
 ### Architecture overview:
 
@@ -177,7 +177,7 @@ The following Figure summarizes the architecture of the framework:
     └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-The following figure illustrates the general execution flow in the run-as-a-server scenario:
+The following Figure illustrates the general execution flow in the run-as-a-server scenario:
 ```
 ┌───────────────────────────────────────────────────────────────────────────────────────────┐
 │ 1. python dispatcher.py serve --port 8000                                                 │
@@ -256,7 +256,7 @@ The following figure illustrates the general execution flow in the run-as-a-serv
                    │
                    ▼
 ┌───────────────────────────────────────────────────────────────────────────────────────────┐
-│13. The passively awaiting AI model subprocess (e.g., kokoro_en_fr for English/French or   │
+│13. The passively waiting AI model subprocess (e.g., kokoro_en_fr for English/French or   │
 │    Mixer80Vocos_ar for Arabic) receives via its stdin the TTS request as a UTF‑8 encoded  │
 │    JSON document, decodes it, feeds the text to its pipeline, and generates the           │
 │    corresponding MP3 audio bytes.                                                         │
@@ -289,7 +289,7 @@ The TTS service exposes a single HTTP endpoint for speech synthesis. Clients com
 
 ### Endpoint:
 - POST /synthesize
-- The service was tested on localhos, port 8000: "http://localhost:8000/synthesize".
+- The service was tested on localhost, port 8000: "http://localhost:8000/synthesize".
 
 ### Request Format:
 - Content-Type: application/json
@@ -352,16 +352,6 @@ models:                       # <-- mandatory top-level key
   interpreter_exe: "string"   # Python interpreter name on Windows (e.g., "python.exe")
 
 # ----------------------------------------------------------------------
-# Global metadata (shared by all models)
-# ----------------------------------------------------------------------
-models:                       # <-- mandatory top-level key
-  model_dir: "string"         # path to the directory containing all model folders
-  venv_script_dir: "string"   # name of the Scripts folder inside a venv (Windows)
-  venv_bin_dir: "string"      # name of the bin folder inside a venv (Linux/macOS)
-  interpreter_name: "string"  # Python interpreter name on Unix (e.g., "python")
-  interpreter_exe: "string"   # Python interpreter name on Windows (e.g., "python.exe")
-
-# ----------------------------------------------------------------------
 # Model definitions (each model is a separate mapping)
 # ----------------------------------------------------------------------
 <model_identifier>:           # unique identifier (e.g., "kokoro_en_fr")
@@ -388,7 +378,7 @@ models:                       # <-- mandatory top-level key
 
 ## Communication Protocol (Model ↔ Dispatcher):
 The model process communicates via stdin/stdout using a simple line‑based JSON protocol. At the sending part, the JSON document is encoded into UTF-8 bytes.
-The process is reversed at the recieving end. The JSON document must be followed by "\n" to used as line separator essential for IPC exchange. 
+The process is reversed at the recieving end. The JSON document must be followed by "\n" to be used as line separator essential for IPC exchange. 
 
 ### Initialisation (model subprocess → ModelProcess instance ):
 ```
@@ -426,7 +416,7 @@ No audio data follows.
 | model subprocess       ->  ModelProcess instance  | Metadata     | JSON + "\n"   | UTF-8 encoding |
 | model subprocess       ->  ModelProcess instance  | Metadata     | Audio         | Raw bytes      |
 
-PS: At the models subprocess level ran in persistant mode (in contrast to run-once mode), stdout messages (e.g print functions ) are redirected to stderr and error cases were handled to be sent as an UTF-8 encode JSON files to be dealt with at the reciever end (ModelProcess instances).
+PS: At the model subprocess level ran in persistent mode (in contrast to run-once mode), stdout messages (e.g print functions ) are redirected to stderr and error cases were handled to be sent as an UTF-8 encode JSON files to be dealt with at the reciever end (ModelProcess instances).
 
 ## TTS Models Used in the Project:
 This project integrates two main families of TTS models: Kokoro (for English and French) and MixerTTS + Vocos (for Arabic). Both are selected for their lightweight design, CPU‑compatibility, and permissive licenses (MIT/Apache 2.0).
@@ -461,13 +451,18 @@ Loading the the KModel twice unecessary.
 - The only available french voice available for the Kokoro model is refered as "ff_siwis". The voice be indexed but not downloaded. In this case run the "voice_testers.py" python script.
 - Refer to the Ressources and References section of this documentation for more information about the model.
 
-### Mixer80Vocos: Mixer80  + Vocos (vovos22) (Arabic):
+### Mixer80Vocos: Mixer80  + Vocos (vocos22) (Arabic):
 For Arabic, we benchmarked three text‑to‑mel models (FastPitch, Mixer128, Mixer80) and three vocoders (HiFi‑GAN, Vocos22, Vocos44).
 
 #### What is a Mel‑spectrogram?:
 Human hearing perceives frequency logarithmically (pitch is not linear). A mel‑spectrogram converts linear frequency bins into mel‑scale bins, mimicking human ear sensitivity.
 The conversion formula is:
 
+The conversion formula is:
+
+```latex
+m = 2595 \cdot \log_{10}\left(1 + \frac{f}{700}\right)
+```
 A mel‑spectrogram with 80 bins means the frequency axis is divided into 80 mel‑scale bands. This is the standard input for many TTS vocoders (e.g., HiFi‑GAN, Vocos). The number of bins determines the frequency resolution; 80 bins is a good trade‑off between detail and computational cost.
 
 |Model	    |Type	      |#Parameters|	Output                |
@@ -571,7 +566,7 @@ Mixer80Vocos:  Mixer80 + Vocos22 is the primary engine for Arabic TTS, while Kok
   - speakers reference: [https://nipponjo.github.io/tts-arabic-speakers/](https://nipponjo.github.io/tts-arabic-speakers/): 4 voice references were provided (Men: S0, S1; women: S3, S4) - S1 was selected.
 
 - Technical details:
-  - The mixer80 model is a MixerTTS model, a non‑autoregressive architecture based on MLP‑Mixer adapted for speech synthesis. It has 1.5M parameters and generates 80‑bin mel‑spectrograms.
+  - The mixer80 model is a MixerTTS model, a non‑autoregressive architecture based on MLP‑Mixer adapted for speech synthesis. It has 2.9M parameters and generates 80‑bin mel‑spectrograms.
   - The vocos model is a GAN‑based vocoder that directly generates Fourier spectral coefficients, achieving state‑of‑the‑art audio quality with an order‑of‑magnitude speed improvement over time‑domain vocoders. It has 13.4M parameters and outputs 22.05kHz waveforms (with a vocos44 variant for 44.1kHz).
   - Both models are distributed in the ONNX format for offline, CPU‑efficient inference. The mel‑spectrogram covers frequencies up to 8kHz; the vocoder artificially extends bandwidth to 11.025kHz (22.05kHz for vocos44).
   - Refer to the Ressources and References section of this documentation for more information about the model.
@@ -595,10 +590,10 @@ This project uses the following third-party components:
   - Source: [BSC-LT/vocos](https://github.com/langtech-bsc/vocos)  
   - Model: `vocos22.onnx`
 
-- **MixerTTS (mixer88)** – Copyright (c) 2021 NVIDIA.  
+- **MixerTTS (mixer80)** – Copyright (c) 2021 NVIDIA.  
   - Licensed under the **Apache License 2.0**.  
   - Source: [NVIDIA/NeMo](https://github.com/NVIDIA/NeMo)  
-  - Model: `mixer88.onnx`
+  - Model: `mixer80.onnx`
 
 - **catt_eo** model by the CATT project (© Abjad AI)
   - Licensed under the **Apache License 2.0**.
