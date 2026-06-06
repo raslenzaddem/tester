@@ -463,6 +463,7 @@ The conversion formula is:
 ```latex
 m = 2595 \cdot \log_{10}\left(1 + \frac{f}{700}\right)
 ```
+$$ m = 2595 \cdot \log_{10}\left(1 + \frac{f}{700}\right) $$
 A mel‑spectrogram with 80 bins means the frequency axis is divided into 80 mel‑scale bands. This is the standard input for many TTS vocoders (e.g., HiFi‑GAN, Vocos). The number of bins determines the frequency resolution; 80 bins is a good trade‑off between detail and computational cost.
 
 |Model	    |Type	      |#Parameters|	Output                |
